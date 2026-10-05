@@ -8,7 +8,7 @@ Codex CLI is the first supported provider for this setup. Other provider CLIs wo
 under Termux, but they are not verified yet.
 
 > This path is still being validated. If a step fails, open an issue at
-> [screen-gd/PocketCLI](https://github.com/screen-gd/PocketCLI/issues) with the command and its output.
+> [collection-of-things/PocketCLI](https://github.com/collection-of-things/PocketCLI/issues) with the command and its output.
 
 ## Requirements
 
@@ -23,7 +23,7 @@ under Termux, but they are not verified yet.
 In the PocketCLI app, open **Add environment** and tap **Copy command**, or copy this:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/screen-gd/PocketCLI/main/scripts/termux/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/collection-of-things/PocketCLI/main/scripts/termux/install.sh | bash
 ```
 
 Paste it into Termux. The installer:

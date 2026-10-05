@@ -1,5 +1,5 @@
 <!--
-This PR targets screen-gd/PocketCLI. Do not open it against pingdotgg/t3code.
+This PR targets collection-of-things/PocketCLI. Do not open it against pingdotgg/t3code.
 Use a conventional commit title in plain language, such as "fix(mobile): thread list no longer flickers".
 Solve one problem per PR.
 -->

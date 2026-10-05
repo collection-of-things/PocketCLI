@@ -6,7 +6,7 @@ the subscriptions you already have.
 
 PocketCLI is a fork of [T3 Code](https://github.com/pingdotgg/t3code), trimmed down to the mobile app
 and the Node server it talks to. It is not affiliated with T3 Tools. Development happens at
-[screen-gd/PocketCLI](https://github.com/screen-gd/PocketCLI); issues and pull requests belong there,
+[collection-of-things/PocketCLI](https://github.com/collection-of-things/PocketCLI); issues and pull requests belong there,
 not upstream.
 
 ## How it works

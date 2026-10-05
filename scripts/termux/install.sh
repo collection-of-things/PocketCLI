@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # PocketCLI bootstrap for Termux (Android).
 #
-#   curl -fsSL https://raw.githubusercontent.com/screen-gd/PocketCLI/main/scripts/termux/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/collection-of-things/PocketCLI/main/scripts/termux/install.sh | bash
 #
 # Installs the toolchain, fetches the `pocketcli` launcher, and hands over to
 # `pocketcli install`, which downloads the prebuilt server, installs Codex CLI,
 # registers start-on-boot, starts the server, and opens the app to pair.
 set -euo pipefail
 
-LAUNCHER_URL="${POCKETCLI_LAUNCHER_URL:-https://raw.githubusercontent.com/screen-gd/PocketCLI/main/scripts/termux/pocketcli}"
+LAUNCHER_URL="${POCKETCLI_LAUNCHER_URL:-https://raw.githubusercontent.com/collection-of-things/PocketCLI/main/scripts/termux/pocketcli}"
 MIN_NODE_MAJOR=22
 
 if [ -z "${PREFIX:-}" ] || [ ! -d "/data/data/com.termux/files/usr" ]; then

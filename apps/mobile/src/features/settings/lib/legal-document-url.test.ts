@@ -4,17 +4,17 @@ import { isLegalDocumentUrl } from "./legal-document-url";
 
 describe("isLegalDocumentUrl", () => {
   it.each([
-    "https://github.com/screen-gd/PocketCLI/legal",
-    "https://github.com/screen-gd/PocketCLI/legal/",
-    "https://github.com/screen-gd/PocketCLI/privacy-policy?source=app",
-    "https://github.com/screen-gd/PocketCLI/terms-of-service#updates",
-    "https://github.com/screen-gd/PocketCLI/security-policy",
+    "https://github.com/collection-of-things/PocketCLI/legal",
+    "https://github.com/collection-of-things/PocketCLI/legal/",
+    "https://github.com/collection-of-things/PocketCLI/privacy-policy?source=app",
+    "https://github.com/collection-of-things/PocketCLI/terms-of-service#updates",
+    "https://github.com/collection-of-things/PocketCLI/security-policy",
   ])("allows a configured legal document: %s", (url) => {
     expect(isLegalDocumentUrl(url)).toBe(true);
   });
 
   it.each([
-    "https://github.com/screen-gd/PocketCLI/download",
+    "https://github.com/collection-of-things/PocketCLI/download",
     "https://example.com/legal",
     "javascript:alert(1)",
     "not-a-url",

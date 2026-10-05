@@ -1,4 +1,4 @@
-const DEFAULT_MARKETING_SITE_URL = "https://github.com/screen-gd/PocketCLI";
+const DEFAULT_MARKETING_SITE_URL = "https://github.com/collection-of-things/PocketCLI";
 
 function resolveMarketingSiteUrl(override: string | undefined): URL {
   try {

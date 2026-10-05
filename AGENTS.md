@@ -2,7 +2,7 @@
 
 PocketCLI is an open source mobile app for driving coding agents (Codex CLI first; Claude Code, Cursor, Grok, OpenCode, Antigravity) from a phone. A Node WebSocket server (`apps/server`) wraps the provider CLIs and streams their work to the React Native app (`apps/mobile`). The primary deployment is the server running on the phone itself inside Termux, with the app connecting to localhost; the server can also run on a computer reached over LAN, Tailscale, or a tunnel.
 
-PocketCLI is a fork of T3 Code (`pingdotgg/t3code`). It is developed at `screen-gd/PocketCLI`. Never open issues or pull requests against upstream from this repository.
+PocketCLI is a fork of T3 Code (`pingdotgg/t3code`). It is developed at `collection-of-things/PocketCLI`. Never open issues or pull requests against upstream from this repository.
 
 ## What we care about
 
@@ -99,7 +99,7 @@ For authorized mobile verification, a missing or outdated native client is a bui
 ## Pull requests
 
 - Never make a PR unless the developer explicitly asks you to do so.
-- PRs target `screen-gd/PocketCLI`, never `pingdotgg/t3code`. This checkout is a GitHub fork, so `gh` defaults to upstream unless `gh repo set-default screen-gd/PocketCLI` has been run; check `gh repo set-default --view` before `gh pr create`.
+- PRs target `collection-of-things/PocketCLI`, never `pingdotgg/t3code`. This checkout is a GitHub fork, so `gh` defaults to upstream unless `gh repo set-default collection-of-things/PocketCLI` has been run; check `gh repo set-default --view` before `gh pr create`.
 - Conventional commit titles, plain language: `fix(mobile): new threads no longer spike CPU`.
 - Body: the problem in a sentence or two, then how you fixed it. End with the model and harness that did the work.
 - UI changes need before/after images. Motion or timing needs a short video.

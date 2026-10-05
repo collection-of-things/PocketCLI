@@ -16,7 +16,7 @@ PID_FILE="$POCKETCLI_DIR/server.pid"
 BOOT_SCRIPT="$HOME/.termux/boot/pocketcli.sh"
 # Development builds of the app register pocketcli-dev:// instead.
 APP_SCHEME="${POCKETCLI_APP_SCHEME:-pocketcli}"
-ARCHIVE_URL="${POCKETCLI_ARCHIVE_URL:-https://github.com/screen-gd/PocketCLI/releases/download/server-latest/pocketcli-server.tar.gz}"
+ARCHIVE_URL="${POCKETCLI_ARCHIVE_URL:-https://github.com/collection-of-things/PocketCLI/releases/download/server-latest/pocketcli-server.tar.gz}"
 
 usage() {
   cat <<'EOF'

@@ -16,7 +16,7 @@ tunnel.
 There is no published installer for the fork yet. Build from source:
 
 ```bash
-git clone https://github.com/screen-gd/PocketCLI
+git clone https://github.com/collection-of-things/PocketCLI
 cd PocketCLI
 vp i
 vp run --filter @t3tools/web build

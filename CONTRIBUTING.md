@@ -1,9 +1,9 @@
 # Contributing
 
 PocketCLI is a fork of T3 Code. All work on this fork happens at
-[screen-gd/PocketCLI](https://github.com/screen-gd/PocketCLI). Open issues and pull requests there,
+[collection-of-things/PocketCLI](https://github.com/collection-of-things/PocketCLI). Open issues and pull requests there,
 never against `pingdotgg/t3code`. If you cloned this repo and `gh pr create` offers the upstream
-repository, run `gh repo set-default screen-gd/PocketCLI` once in your checkout.
+repository, run `gh repo set-default collection-of-things/PocketCLI` once in your checkout.
 
 ## Developer setup
 
@@ -19,7 +19,7 @@ and anything that makes the on-device path work better are welcome. Changes to t
 `apps/web` are low priority; it exists as a fallback the server can serve, not as a product surface.
 
 Report bugs in issues. Discuss larger ideas in
-[Discussions](https://github.com/screen-gd/PocketCLI/discussions) before building them, so the
+[Discussions](https://github.com/collection-of-things/PocketCLI/discussions) before building them, so the
 direction is agreed before you spend time on it.
 
 ## Pull requests

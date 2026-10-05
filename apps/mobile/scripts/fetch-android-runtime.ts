@@ -14,7 +14,7 @@ import * as NodePath from "node:path";
 import * as NodeURL from "node:url";
 
 const DEFAULT_URL =
-  "https://github.com/screen-gd/PocketCLI/releases/download/android-runtime-latest/pocketcli-android-runtime.tar.gz";
+  "https://github.com/collection-of-things/PocketCLI/releases/download/android-runtime-latest/pocketcli-android-runtime.tar.gz";
 
 if (process.env.EAS_BUILD_PLATFORM && process.env.EAS_BUILD_PLATFORM !== "android") {
   process.exit(0);
