@@ -66,7 +66,11 @@ jobs:
           set -euo pipefail
           curl -fsSL "https://nodejs.org/dist/${NODE_ANDROID_VERSION}/node-${NODE_ANDROID_VERSION}.tar.xz" | tar -xJ -C "$RUNNER_TEMP"
           cd "$RUNNER_TEMP/node-${NODE_ANDROID_VERSION}"
-          ./android-configure patch
+          # Host tools (torque, mksnapshot) run on this runner during the build,
+          # so they need the runner's compiler, not the NDK's. Node 22's V8
+          # already disables the trap handler on Android, so the
+          # `android-configure patch` step is not needed (its hunk no longer applies).
+          export CC_host=gcc CXX_host=g++ LINK_host=g++ AR_host=ar
           ./android-configure "$NDK" "$ANDROID_API" arm64
           make -j"$(nproc)"
           mkdir -p "$GITHUB_WORKSPACE/native"
