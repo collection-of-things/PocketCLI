@@ -138,6 +138,9 @@ jobs:
           src="$(node -p "require('path').dirname(require.resolve('node-pty/package.json', { paths: ['apps/server'] }))")"
           work="$RUNNER_TEMP/node-pty"
           cp -rL "$src" "$work"
+          # pnpm keeps node-pty's dependencies (node-addon-api) beside it, not
+          # inside it; the copy still needs to resolve them.
+          export NODE_PATH="$(dirname "$src")"
           cd "$work"
           sed -i "s/'-lutil'//g" binding.gyp
           tc="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin"
