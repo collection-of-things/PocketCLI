@@ -183,6 +183,9 @@ object LocalServer {
       put("POCKETCLI_PID_FILE", dirs.pid.path)
       put("POCKETCLI_NODE", nodeBinary(context).path)
       put("POCKETCLI_ENTRY", File(serverDir, "bin.mjs").path)
+      // libnode.so links libc++_shared.so from the same directory. An executable
+      // started outside the app's class loader only finds it through this path.
+      put("LD_LIBRARY_PATH", context.applicationInfo.nativeLibraryDir)
       put("HOME", dirs.home.path)
       put("TMPDIR", context.cacheDir.path)
       put("PATH", "${dirs.bin.path}:/system/bin")

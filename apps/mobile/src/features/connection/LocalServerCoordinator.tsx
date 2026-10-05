@@ -1,5 +1,6 @@
 import { setPairingTokenOnUrl } from "@t3tools/shared/remote";
 import { useEffect, useRef, useState } from "react";
+import { Alert } from "react-native";
 
 import { connectPairingUrl } from "../../connection/onboarding";
 import { type LocalServerEndpoint, localServer } from "../../native/localServer";
@@ -33,7 +34,12 @@ export function LocalServerCoordinator() {
         if (!cancelled) setEndpoint(started);
       },
       (error: unknown) => {
-        console.warn("[local-server] failed to start", error);
+        // The message carries the tail of the server log, which is the only way
+        // to see why it failed without adb.
+        Alert.alert(
+          "The server on this phone did not start",
+          error instanceof Error ? error.message : String(error),
+        );
       },
     );
     return () => {
