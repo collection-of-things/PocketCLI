@@ -8,9 +8,10 @@ name: Android Release
 # production variant (com.pocketcli.app, pocketcli:// links, which the Termux
 # launcher opens) with the on-device server from the android-runtime workflow.
 #
-# The APK is signed with the runner's throwaway debug key. Installing a newer
-# release over an older one therefore fails until a release keystore is wired
-# in; uninstall the previous build first.
+# Every APK is signed with the same release key (ANDROID_KEYSTORE_BASE64 and
+# ANDROID_KEYSTORE_PASSWORD secrets, a PKCS12 keystore), and versionCode is the
+# workflow run number, so each release installs over the previous one. Losing
+# that key means users must uninstall to update.
 
 on:
   push:
@@ -89,6 +90,29 @@ jobs:
         working-directory: apps/mobile/android
         run: ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon
 
+      # Gradle signs with the prebuild template's debug key; replace it with the
+      # stable release key so updates install in place.
+      - name: Sign APK
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ]; then
+            echo "ANDROID_KEYSTORE_BASE64 and ANDROID_KEYSTORE_PASSWORD secrets are required." >&2
+            exit 1
+          fi
+          keystore="$RUNNER_TEMP/release.p12"
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$keystore"
+          apksigner="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)apksigner"
+          apk="PocketCLI-${VERSION}-arm64.apk"
+          "$apksigner" sign --ks "$keystore" --ks-type PKCS12 --ks-key-alias pocketcli \
+            --ks-pass env:KEYSTORE_PASSWORD --key-pass env:KEYSTORE_PASSWORD \
+            --out "$apk" apps/mobile/android/app/build/outputs/apk/release/app-release.apk
+          "$apksigner" verify --print-certs "$apk" | head -3
+          rm -f "$keystore"
+
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -97,7 +121,6 @@ jobs:
         run: |
           set -euo pipefail
           apk="PocketCLI-${VERSION}-arm64.apk"
-          cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk "$apk"
           notes_file="$RUNNER_TEMP/notes.md"
           {
             echo "PocketCLI ${VERSION} for Android 10+ (arm64). Built from ${GITHUB_SHA}."
@@ -105,7 +128,7 @@ jobs:
             echo "The app starts its own server on the phone. Codex is not bundled into the app yet;"
             echo "until it is, run agents through the Termux setup (docs/user/termux.md)."
             echo
-            echo "Signed with a throwaway key: uninstall any earlier PocketCLI test build before installing this one."
+            echo "Installs over earlier PocketCLI releases from this page; your data is kept."
           } > "$notes_file"
           flags=()
           [ "$PRERELEASE" = "true" ] && flags+=(--prerelease)
