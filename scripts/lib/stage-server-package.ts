@@ -43,11 +43,27 @@ export function stageServerPackage(input: {
 
   const sha = process.env.GITHUB_SHA?.slice(0, 7);
   const version = sha ? `${serverPackage.version}+${sha}` : serverPackage.version;
-  const dependencies = resolveCatalogDependencies(
+  const resolved = resolveCatalogDependencies(
     selectCliRuntimeExternalDependencies(serverPackage.dependencies),
     workspace.catalog,
     "apps/server",
   );
+  // npm refuses to install a regular dependency whose `os` list leaves out the
+  // device's platform, and Termux reports `android`. Packages the server only
+  // loads on first use (such as fff-node for file search) become optional, so
+  // npm skips them there instead of failing the whole install.
+  const dependencies: Record<string, string> = {};
+  const optionalDependencies: Record<string, string> = {};
+  for (const [name, spec] of Object.entries(resolved)) {
+    const { os } = readJson<{ readonly os?: ReadonlyArray<string> }>(
+      NodePath.join(input.repoRoot, "apps/server/node_modules", name, "package.json"),
+    );
+    if (os !== undefined && !os.includes("android")) {
+      optionalDependencies[name] = spec;
+    } else {
+      dependencies[name] = spec;
+    }
+  }
 
   NodeFS.rmSync(input.stageDir, { recursive: true, force: true });
   NodeFS.mkdirSync(input.stageDir, { recursive: true });
@@ -67,10 +83,11 @@ export function stageServerPackage(input: {
         description: input.description,
         engines: { node: ">=22.16" },
         dependencies,
+        optionalDependencies,
       },
       null,
       2,
     )}\n`,
   );
-  return { version, dependencies };
+  return { version, dependencies: { ...dependencies, ...optionalDependencies } };
 }
