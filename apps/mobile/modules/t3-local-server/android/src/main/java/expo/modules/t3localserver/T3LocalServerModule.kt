@@ -26,9 +26,7 @@ class T3LocalServerModule : Module() {
         )
       }
       LocalServerService.start(context)
-      val endpoint = try {
-        LocalServer.ensureStarted(context)
-      } catch (error: Exception) {
+      val endpoint = runCatching { LocalServer.ensureStarted(context) }.getOrElse { error ->
         throw CodedException(
           "ERR_LOCAL_SERVER_START",
           error.message ?: "The server failed to start.",

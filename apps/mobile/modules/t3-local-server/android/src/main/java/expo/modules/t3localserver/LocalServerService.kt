@@ -42,12 +42,10 @@ class LocalServerService : Service() {
     )
     // A null intent means Android restarted the service after killing the app.
     thread(name = "pocketcli-server-watch") {
-      try {
+      runCatching {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) LocalServer.ensureStarted(this)
         LocalServer.awaitExit()
-      } catch (error: Exception) {
-        Log.e(TAG, "PocketCLI server failed", error)
-      }
+      }.onFailure { Log.e(TAG, "PocketCLI server failed", it) }
       // The server is gone; the notification would be lying.
       stopSelf()
     }

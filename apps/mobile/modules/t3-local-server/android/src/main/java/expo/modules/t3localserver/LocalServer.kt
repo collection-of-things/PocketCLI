@@ -9,6 +9,7 @@ import java.io.File
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.security.SecureRandom
+import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 
 /**
@@ -28,6 +29,7 @@ object LocalServer {
   private const val ARCHIVE_ASSET = "pocketcli-server.zip"
   private const val READY_TIMEOUT_MS = 90_000L
   private const val MAX_LOG_BYTES = 5L * 1024 * 1024
+  private const val STOP_GRACE_MS = 5_000
 
   data class Endpoint(val httpBaseUrl: String, val bootstrapToken: String)
 
@@ -61,11 +63,12 @@ object LocalServer {
     stopStale(dirs)
     val token = randomToken()
     val started = spawn(app, dirs, serverDir, token)
+    var listening = false
     try {
       waitUntilListening(started, dirs)
-    } catch (error: Exception) {
-      started.destroy()
-      throw error
+      listening = true
+    } finally {
+      if (!listening) started.destroy()
     }
     process = started
     Endpoint("http://127.0.0.1:$PORT", token).also { endpoint = it }
@@ -104,20 +107,8 @@ object LocalServer {
 
     dirs.server.deleteRecursively()
     dirs.server.mkdirs()
-    val root = dirs.server.canonicalPath + File.separator
     ZipInputStream(context.assets.open(ARCHIVE_ASSET).buffered()).use { zip ->
-      generateSequence { zip.nextEntry }.forEach { entry ->
-        val target = File(dirs.server, entry.name)
-        require(target.canonicalPath.startsWith(root)) {
-          "Unsafe path in server archive: ${entry.name}"
-        }
-        if (entry.isDirectory) {
-          target.mkdirs()
-        } else {
-          target.parentFile?.mkdirs()
-          target.outputStream().use { zip.copyTo(it) }
-        }
-      }
+      generateSequence { zip.nextEntry }.forEach { entry -> extractEntry(zip, entry, dirs.server) }
     }
 
     // node-pty loads build/Release/pty.node. Point it at the copy in the native
@@ -137,18 +128,40 @@ object LocalServer {
     return dirs.server
   }
 
+  private fun extractEntry(zip: ZipInputStream, entry: ZipEntry, destination: File) {
+    val target = File(destination, entry.name)
+    require(target.canonicalPath.startsWith(destination.canonicalPath + File.separator)) {
+      "Unsafe path in server archive: ${entry.name}"
+    }
+    if (entry.isDirectory) {
+      target.mkdirs()
+    } else {
+      target.parentFile?.mkdirs()
+      target.outputStream().use { zip.copyTo(it) }
+    }
+  }
+
   /** Stops a server left behind when Android killed the app process but not its child. */
   private fun stopStale(dirs: Dirs) {
-    val pid = dirs.pid.takeIf { it.exists() }?.readText()?.trim()?.toIntOrNull() ?: return
+    val pid = dirs.pid.takeIf { it.exists() }?.readText()?.trim()?.toIntOrNull()
     dirs.pid.delete()
-    val cmdline = runCatching { File("/proc/$pid/cmdline").readText() }.getOrNull() ?: return
-    if (!cmdline.contains("libnode.so")) return
+    if (pid != null && isServerProcess(pid)) terminate(pid)
+  }
+
+  private fun isServerProcess(pid: Int): Boolean {
+    val cmdline = runCatching { File("/proc/$pid/cmdline").readText() }.getOrNull()
+    return cmdline?.contains("libnode.so") == true
+  }
+
+  private fun terminate(pid: Int) {
+    val proc = File("/proc/$pid")
     runCatching { Os.kill(pid, OsConstants.SIGTERM) }
-    repeat(50) {
-      if (!File("/proc/$pid").exists()) return
+    var waitedMs = 0
+    while (proc.exists() && waitedMs < STOP_GRACE_MS) {
       Thread.sleep(100)
+      waitedMs += 100
     }
-    runCatching { Os.kill(pid, OsConstants.SIGKILL) }
+    if (proc.exists()) runCatching { Os.kill(pid, OsConstants.SIGKILL) }
   }
 
   @RequiresApi(Build.VERSION_CODES.Q)
@@ -202,18 +215,14 @@ object LocalServer {
   private fun waitUntilListening(started: Process, dirs: Dirs) {
     val deadline = System.currentTimeMillis() + READY_TIMEOUT_MS
     while (System.currentTimeMillis() < deadline) {
-      if (!started.isAlive) {
-        throw IllegalStateException("The server exited during startup.\n${logTail(dirs)}")
-      }
+      check(started.isAlive) { "The server exited during startup.\n${logTail(dirs)}" }
       val listening = runCatching {
         Socket().use { it.connect(InetSocketAddress("127.0.0.1", PORT), 250) }
       }.isSuccess
       if (listening) return
       Thread.sleep(250)
     }
-    throw IllegalStateException(
-      "The server did not start within ${READY_TIMEOUT_MS / 1000}s.\n${logTail(dirs)}"
-    )
+    error("The server did not start within ${READY_TIMEOUT_MS / 1000}s.\n${logTail(dirs)}")
   }
 
   private fun logTail(dirs: Dirs): String =
