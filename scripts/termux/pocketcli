@@ -153,7 +153,9 @@ download_server() {
   tar -xzf "$tmp" -C "$new_dir" --strip-components=1
   rm -f "$tmp"
   echo "Installing native dependencies (node-pty compiles on first install; this takes a few minutes) ..."
-  (cd "$new_dir" && npm install --omit=dev --no-audit --no-fund --loglevel=error)
+  # Termux's Node reports OS=android, and Node's gyp settings then expect the
+  # Android NDK path. Termux builds with its own clang, so there is none to give.
+  (cd "$new_dir" && GYP_DEFINES="android_ndk_path=''" npm install --omit=dev --no-audit --no-fund --loglevel=error)
   rm -rf "$SERVER_DIR.old"
   if [ -d "$SERVER_DIR" ]; then
     mv "$SERVER_DIR" "$SERVER_DIR.old"
