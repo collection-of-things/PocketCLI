@@ -1,14 +1,12 @@
 /**
  * The single source of truth for packages the server CLI bundle must NOT inline.
  *
- * Two consumers derive from this list, and they must never disagree:
+ * apps/server/vite.config.ts decides what stays external to the bundle from this
+ * list, and any packaging step that stages runtime dependencies beside the bundle
+ * must derive from it too.
  *
- * - apps/server/vite.config.ts decides what stays external to the bundle.
- * - scripts/build-desktop-artifact.ts selects the runtime dependency roots for
- *   the Windows server sidecar.
- *
- * A runtime package that is external but absent from the sidecar fails as soon
- * as Node resolves it from the emitted bundle. Keeping both consumers on one
+ * A runtime package that is external but absent from the staged node_modules fails
+ * as soon as Node resolves it from the emitted bundle. Keeping every consumer on one
  * list prevents packaging from drifting away from the bundle boundary.
  *
  * Entries are matched as prefixes (`id.startsWith(prefix)`), so they also cover

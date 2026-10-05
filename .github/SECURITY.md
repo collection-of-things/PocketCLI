@@ -1,8 +1,11 @@
 # Security policy
 
-Report security vulnerabilities affecting T3 Code or T3 Tools-operated infrastructure to
-[security@ping.gg](mailto:security@ping.gg). Please do not disclose them publicly until we have had
-a reasonable opportunity to investigate and remediate them.
+PocketCLI is a community fork of T3 Code and is not operated or supported by T3 Tools.
 
-See the [full security policy](https://t3.codes/security-policy) for reporting details, scope,
-and safe harbor terms for good-faith research.
+Report security vulnerabilities in PocketCLI privately through
+[GitHub security advisories](https://github.com/screen-gd/PocketCLI/security/advisories/new).
+Please do not disclose them publicly until we have had a reasonable opportunity to investigate
+and fix them.
+
+If the issue also affects upstream T3 Code, report it to them separately by following
+their [security policy](https://t3.codes/security-policy).

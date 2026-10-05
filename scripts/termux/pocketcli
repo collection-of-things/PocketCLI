@@ -1,0 +1,235 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# PocketCLI launcher for Termux.
+#
+# Ships inside pocketcli-server.tar.gz and is linked to $PREFIX/bin/pocketcli
+# by `pocketcli install`. Runs the bundled server on loopback and hands pairing
+# to the PocketCLI app on the same phone through a pocketcli:// deep link.
+set -euo pipefail
+
+POCKETCLI_DIR="${POCKETCLI_DIR:-$HOME/.pocketcli}"
+SERVER_DIR="$POCKETCLI_DIR/server"
+PORT="${POCKETCLI_PORT:-13773}"
+HOST="127.0.0.1"
+ORIGIN="http://$HOST:$PORT"
+LOG_FILE="$POCKETCLI_DIR/server.log"
+PID_FILE="$POCKETCLI_DIR/server.pid"
+BOOT_SCRIPT="$HOME/.termux/boot/pocketcli.sh"
+# Development builds of the app register pocketcli-dev:// instead.
+APP_SCHEME="${POCKETCLI_APP_SCHEME:-pocketcli}"
+ARCHIVE_URL="${POCKETCLI_ARCHIVE_URL:-https://github.com/screen-gd/PocketCLI/releases/download/server-latest/pocketcli-server.tar.gz}"
+
+usage() {
+  cat <<'EOF'
+Usage: pocketcli <command>
+
+  start [--no-pair]  Start the server on this phone and open the app to pair.
+  pair               Issue a fresh pairing link and open it in the PocketCLI app.
+  stop               Stop the server.
+  status             Show whether the server is running.
+  logs               Follow the server log.
+  login              Sign Codex CLI in (runs `codex login`).
+  update             Download the latest server build and restart if running.
+  install            Set up Codex CLI, this launcher, and start-on-boot.
+EOF
+}
+
+server_bin() {
+  if [ ! -f "$SERVER_DIR/bin.mjs" ]; then
+    echo "PocketCLI server is not installed. Run: pocketcli update" >&2
+    exit 1
+  fi
+  printf '%s' "$SERVER_DIR/bin.mjs"
+}
+
+is_running() {
+  [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null
+}
+
+wait_for_server() {
+  local attempt
+  for attempt in $(seq 1 60); do
+    if node -e "fetch('$ORIGIN/').then(() => process.exit(0), () => process.exit(1))" 2>/dev/null; then
+      return 0
+    fi
+    sleep 0.5
+  done
+  return 1
+}
+
+open_in_app() {
+  local url="$1"
+  if command -v am >/dev/null 2>&1 && am start -a android.intent.action.VIEW -d "$url" >/dev/null 2>&1; then
+    return 0
+  fi
+  if command -v termux-open-url >/dev/null 2>&1 && termux-open-url "$url" 2>/dev/null; then
+    return 0
+  fi
+  return 1
+}
+
+cmd_start() {
+  local no_pair=0
+  [ "${1:-}" = "--no-pair" ] && no_pair=1
+  local bin
+  bin="$(server_bin)"
+  mkdir -p "$POCKETCLI_DIR"
+  if is_running; then
+    echo "PocketCLI server is already running on $ORIGIN (pid $(cat "$PID_FILE"))."
+  else
+    command -v termux-wake-lock >/dev/null 2>&1 && termux-wake-lock || true
+    nohup node "$bin" serve --host "$HOST" --port "$PORT" >>"$LOG_FILE" 2>&1 &
+    echo $! >"$PID_FILE"
+    echo "Starting PocketCLI server on $ORIGIN ..."
+    if ! wait_for_server; then
+      echo "The server did not start. Last log lines:" >&2
+      tail -n 20 "$LOG_FILE" >&2 || true
+      exit 1
+    fi
+    echo "Server is running."
+  fi
+  if [ "$no_pair" -eq 0 ]; then
+    cmd_pair
+  fi
+}
+
+cmd_pair() {
+  local bin json pair_url encoded deep_link
+  bin="$(server_bin)"
+  json="$(node "$bin" auth pairing create --base-url "$ORIGIN" --label "PocketCLI app on this phone" --json)"
+  pair_url="$(printf '%s' "$json" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(JSON.parse(s).pairUrl))')"
+  encoded="$(node -e 'process.stdout.write(encodeURIComponent(process.argv[1]))' "$pair_url")"
+  deep_link="$APP_SCHEME://connections/new?pairingUrl=$encoded"
+  if open_in_app "$deep_link"; then
+    echo "Opened the PocketCLI app. Tap \"Add environment\" there to finish pairing."
+  else
+    echo "Could not open the PocketCLI app automatically."
+    echo "In the app, go to Settings > Environments > Add environment and paste:"
+    echo "  $pair_url"
+  fi
+}
+
+cmd_stop() {
+  if is_running; then
+    kill "$(cat "$PID_FILE")" && echo "Stopped PocketCLI server."
+  else
+    echo "PocketCLI server is not running."
+  fi
+  rm -f "$PID_FILE"
+  command -v termux-wake-unlock >/dev/null 2>&1 && termux-wake-unlock || true
+}
+
+cmd_status() {
+  if is_running; then
+    echo "running on $ORIGIN (pid $(cat "$PID_FILE"))"
+  else
+    echo "stopped"
+    return 1
+  fi
+}
+
+cmd_logs() {
+  mkdir -p "$POCKETCLI_DIR"
+  touch "$LOG_FILE"
+  tail -n 100 -f "$LOG_FILE"
+}
+
+cmd_login() {
+  if ! command -v codex >/dev/null 2>&1; then
+    echo "Codex CLI is not installed. Run: pocketcli install" >&2
+    exit 1
+  fi
+  codex login "$@"
+}
+
+download_server() {
+  local tmp new_dir
+  mkdir -p "$POCKETCLI_DIR"
+  tmp="$(mktemp "$POCKETCLI_DIR/server.XXXXXX.tar.gz")"
+  new_dir="$SERVER_DIR.new"
+  echo "Downloading $ARCHIVE_URL ..."
+  curl -fL --progress-bar "$ARCHIVE_URL" -o "$tmp"
+  rm -rf "$new_dir"
+  mkdir -p "$new_dir"
+  tar -xzf "$tmp" -C "$new_dir" --strip-components=1
+  rm -f "$tmp"
+  echo "Installing native dependencies (node-pty compiles on first install; this takes a few minutes) ..."
+  (cd "$new_dir" && npm install --omit=dev --no-audit --no-fund --loglevel=error)
+  rm -rf "$SERVER_DIR.old"
+  if [ -d "$SERVER_DIR" ]; then
+    mv "$SERVER_DIR" "$SERVER_DIR.old"
+  fi
+  mv "$new_dir" "$SERVER_DIR"
+  rm -rf "$SERVER_DIR.old"
+  chmod 755 "$SERVER_DIR/pocketcli"
+}
+
+link_launcher() {
+  ln -sf "$SERVER_DIR/pocketcli" "$PREFIX/bin/pocketcli"
+}
+
+# Upstream @openai/codex ships a Linux binary that does not run on Android, so we
+# use the DioNanos/codex-termux fork. It installs the same `codex` command.
+CODEX_PACKAGE="${POCKETCLI_CODEX_PACKAGE:-@mmmbuto/codex-cli-termux}"
+
+install_codex() {
+  if npm ls -g --depth=0 "$CODEX_PACKAGE" >/dev/null 2>&1; then
+    echo "Codex CLI already installed: $(codex --version 2>/dev/null || echo present)"
+  else
+    echo "Installing Codex CLI ($CODEX_PACKAGE) ..."
+    npm install -g "$CODEX_PACKAGE" --no-audit --no-fund --loglevel=error
+  fi
+}
+
+install_boot_script() {
+  mkdir -p "$(dirname "$BOOT_SCRIPT")"
+  cat >"$BOOT_SCRIPT" <<'EOF'
+#!/data/data/com.termux/files/usr/bin/sh
+# Installed by `pocketcli install`. Runs when Termux:Boot starts after a reboot.
+termux-wake-lock
+pocketcli start --no-pair
+EOF
+  chmod 755 "$BOOT_SCRIPT"
+}
+
+cmd_update() {
+  local was_running=0
+  is_running && was_running=1
+  [ "$was_running" -eq 1 ] && cmd_stop
+  download_server
+  link_launcher
+  echo "Server updated to $(node -e 'process.stdout.write(require(process.argv[1]).version)' "$SERVER_DIR/package.json")."
+  [ "$was_running" -eq 1 ] && cmd_start --no-pair
+  return 0
+}
+
+cmd_install() {
+  if [ ! -f "$SERVER_DIR/bin.mjs" ]; then
+    download_server
+  fi
+  link_launcher
+  install_codex
+  install_boot_script
+  echo
+  echo "PocketCLI is installed."
+  echo "  Start on boot: install the Termux:Boot app once; $BOOT_SCRIPT is ready."
+  echo
+  cmd_start
+  echo
+  if ! codex login status >/dev/null 2>&1; then
+    echo "Next: sign in to Codex by running \`codex login\` here in Termux."
+    echo "PocketCLI picks the credentials up from ~/.codex; no restart needed."
+  fi
+}
+
+case "${1:-}" in
+  start) shift; cmd_start "$@" ;;
+  pair) cmd_pair ;;
+  stop) cmd_stop ;;
+  status) cmd_status ;;
+  logs) cmd_logs ;;
+  login) shift; cmd_login "$@" ;;
+  update) cmd_update ;;
+  install) cmd_install ;;
+  -h|--help|help|"") usage ;;
+  *) echo "Unknown command: $1" >&2; usage >&2; exit 2 ;;
+esac

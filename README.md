@@ -1,125 +1,69 @@
-# T3 Code
+# PocketCLI
 
-T3 Code is an "agent harness control surface". It enables control of the agents on your machine with a best-in-class mobile app ([iOS](https://apps.apple.com/us/app/t3-code-remote-claude-more/id6787819824), [Android](https://play.google.com/store/apps/details?id=com.t3tools.t3code)), [web app](https://app.t3.codes) and [Electron-based desktop app](https://t3.codes).
+PocketCLI puts coding agents in your pocket. It is an open source mobile app (iOS and Android) for
+driving Codex CLI, Claude Code, Grok Build, Cursor, OpenCode, and Antigravity from your phone, using
+the subscriptions you already have.
 
-Works with your subscriptions on Claude Code, Codex, Cursor, Grok Build, OpenCode, and Google Antigravity. If they're set up on your computer, T3 Code can control them.
+PocketCLI is a fork of [T3 Code](https://github.com/pingdotgg/t3code), trimmed down to the mobile app
+and the Node server it talks to. It is not affiliated with T3 Tools. Development happens at
+[screen-gd/PocketCLI](https://github.com/screen-gd/PocketCLI); issues and pull requests belong there,
+not upstream.
 
-## "Wait, what are you selling me?"
+## How it works
 
-Nothing. We built T3 Code because we wanted the best possible development experience with agents. We were inspired by existing solutions like the Codex desktop app, Conductor, Claude Desktop and Cursor Glass, but none met our bar.
+Two parts:
 
-We wanted something performant, remote-ready, and truly open. If we ever go the wrong direction, we want you to have everything you need to fork and build the editor that you want.
+- **The app** (`apps/mobile`): a React Native client for chatting with agents, reviewing diffs,
+  running terminals, and approving actions.
+- **The server** (`apps/server`): a small Node WebSocket server that wraps the provider CLIs
+  installed on a machine and streams their work to the app.
 
-## Installation
+The server can run in two places:
 
-> [!WARNING]
-> T3 Code currently supports Codex, Claude, Cursor, Grok Build, OpenCode, and Antigravity. Install and authenticate at least one provider before use:
->
-> - Codex: install [Codex CLI](https://developers.openai.com/codex/cli) and run `codex login`
-> - Claude: install [Claude Code](https://claude.com/product/claude-code) and run `claude auth login`
-> - Cursor: install [Cursor CLI](https://cursor.com/cli) and run `agent login`
-> - Grok Build: install [Grok Build CLI](https://x.ai/cli) and run `grok login`
-> - OpenCode: install [OpenCode](https://opencode.ai) and run `opencode auth login`
-> - Antigravity: enable it in Settings, then use **Install Antigravity** and **Sign in with Google**. No CLI is required.
+1. **On the phone itself, inside [Termux](https://termux.dev)** (Android). Node, the server, and
+   Codex CLI all run on-device; the app connects to `localhost`. This is the primary target.
+   See [Run PocketCLI on your phone with Termux](./docs/user/termux.md).
+2. **On a computer** you own, reached over your LAN, Tailscale, or a tunnel. See
+   [Install the host server](./docs/user/install.md) and [Remote access](./docs/user/remote-access.md).
 
-### Command line
+Provider support: Codex CLI is the first supported provider for on-device use. Claude Code, Cursor,
+Grok Build, OpenCode, and Antigravity work when their CLIs are installed next to the server.
 
-```bash
-curl -fsSL https://t3.codes/install.sh | sh
-```
+## Status
 
-On Windows, in PowerShell:
-
-```powershell
-irm https://t3.codes/install.ps1 | iex
-```
-
-Then run `t3` to start the server and open the local web app. `t3 service install` keeps it running in the background, `t3 update` moves to a newer release, and `t3 --help` has the full reference.
-
-To try it once without installing, run `npx t3@latest` instead.
-
-### Desktop app
-
-Install the latest version of the desktop app from [GitHub Releases](https://github.com/pingdotgg/t3code/releases), or from your favorite package registry:
-
-#### Windows (`winget`)
-
-```bash
-winget install T3Tools.T3Code
-```
-
-#### macOS (Homebrew)
-
-```bash
-brew install --cask t3-code
-```
-
-#### Debian, Ubuntu (`.deb`)
-
-Download the `.deb` from [GitHub Releases](https://github.com/pingdotgg/t3code/releases), then:
-
-```bash
-sudo apt install ./T3-Code-*.deb
-```
-
-#### Arch Linux (AUR)
-
-Stable:
-
-```bash
-yay -S t3code-bin
-```
-
-Nightly:
-
-```bash
-yay -S t3code-nightly-bin
-```
-
-The AUR packaging is maintained in this repository under [`packaging/aur`](./packaging/aur).
-
-## Some notes
-
-We are very very early in this project. Expect bugs.
-
-We are (mostly) not accepting contributions yet. Small fixes may be considered. Big features will not be.
+Early. Expect rough edges. The mobile app and server are inherited from T3 Code and work today; the
+Termux on-device path is being validated.
 
 ## Documentation
 
-Full docs live in [docs/](./docs). There's no docs site yet.
-
-- [Install and first run](./docs/user/install.md)
+- [Termux guide](./docs/user/termux.md)
+- [Host server install](./docs/user/install.md)
 - [Permission modes](./docs/user/permission-modes.md)
-- [Keyboard shortcuts](./docs/user/keybindings.md)
-- [Project settings](./docs/user/project-settings.md)
-- [Appearance preferences](./docs/user/appearance.md)
-- [Remote access from a phone or another machine](./docs/user/remote-access.md)
-- [Keeping app and server in sync](./docs/user/updating.md)
-- [Source control integrations](./docs/user/source-control.md)
-- Multiple accounts: [Codex](./docs/user/providers-codex.md) · [Claude](./docs/user/providers-claude.md)
-- [Run T3 Code as a background service](./docs/user/background-service.md)
+- [Remote access](./docs/user/remote-access.md)
+- [Source control](./docs/user/source-control.md)
+- Providers: [Codex](./docs/user/providers-codex.md) · [Claude](./docs/user/providers-claude.md) · [OpenCode](./docs/user/providers-opencode.md)
+- [Full docs index](./docs/README.md)
 
-Building from source? Start at [docs/internals/overview.md](./docs/internals/overview.md).
+Building from source? Start at [docs/internals/overview.md](./docs/internals/overview.md) and the
+[development runbook](./docs/operations/development.md).
 
-## If you REALLY want to contribute still.... read this first
+## Contributing
 
 ### Install `vp`
 
-T3 Code uses Vite+ so you'll need to install the global `vp` command-line tool.
+The repo uses Vite+, so install the global `vp` command-line tool.
 
-#### macOS / Linux
+macOS / Linux:
 
 ```bash
 curl -fsSL https://vite.plus | bash
 ```
 
-#### Windows
+Windows:
 
-```bash
+```powershell
 irm https://vite.plus/ps1 | iex
 ```
-
-Checkout their getting started guide for more information: https://viteplus.dev/guide/
 
 ### Install dependencies
 
@@ -127,8 +71,9 @@ Checkout their getting started guide for more information: https://viteplus.dev/
 vp i
 ```
 
-Read [CONTRIBUTING.md](./CONTRIBUTING.md) before reporting a bug or opening a PR.
+Then read [CONTRIBUTING.md](./CONTRIBUTING.md). Mobile build instructions live in
+[apps/mobile/README.md](./apps/mobile/README.md).
 
-Have a feature request? Start an [Ideas discussion](https://github.com/pingdotgg/t3code/discussions/categories/ideas).
+## License
 
-Need support? Join the [Discord](https://discord.gg/jn4EGJjrvv).
+MIT, same as upstream. See [LICENSE](./LICENSE).

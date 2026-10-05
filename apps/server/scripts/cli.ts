@@ -153,7 +153,7 @@ const buildExeCmd = Command.make(
         return yield* new ServerCliExecutableImportError({ bundlePath, specifiers });
       }
       yield* Effect.log(
-        "[cli] Built dist-exe/t3 (expects client/, resource-monitor/, and the runtime-external node_modules beside it; scripts/build-cli-archive.ts assembles that tree)",
+        "[cli] Built dist-exe/t3 (expects client/, resource-monitor/, and the runtime-external node_modules beside it)",
       );
     }),
 ).pipe(
@@ -167,7 +167,7 @@ const buildExeCmd = Command.make(
 // ---------------------------------------------------------------------------
 
 /**
- * Publishes the tarballs scripts/build-npm-platform-packages.ts produced:
+ * Publishes platform tarballs built from dist-exe:
  * every `@t3code/t3-<platform>.tgz` first, `t3.tgz` (the launcher) last, so
  * the launcher is never installable before the executables it depends on.
  * Tarballs rather than directories because `npm publish <dir>` strips the
@@ -177,7 +177,7 @@ const publishCmd = Command.make(
   "publish",
   {
     packagesDir: Flag.String("packages-dir").pipe(
-      Flag.withDescription("Output dir of scripts/build-npm-platform-packages.ts."),
+      Flag.withDescription("Directory containing the platform tarballs to publish."),
     ),
     tag: Flag.String("tag").pipe(Flag.withDefault("latest")),
     access: Flag.String("access").pipe(Flag.withDefault("public")),

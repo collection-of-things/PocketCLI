@@ -70,6 +70,23 @@ export function parsePairingUrl(url: string): { host: string; code: string } {
   }
 }
 
+/**
+ * True when the pairing URL points at a server on this same device, such as the
+ * PocketCLI server running in Termux. Only these links may arrive pre-filled
+ * from a deep link in production: any app on the phone can fire a deep link,
+ * so a remote host and token chosen by a stranger must never be accepted that way.
+ */
+export function isLoopbackPairingUrl(url: string): boolean {
+  const { host } = parsePairingUrl(url);
+  if (!host) return false;
+  try {
+    const hostname = new URL(host).hostname.replace(/^\[|\]$/g, "");
+    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+  } catch {
+    return false;
+  }
+}
+
 export function extractPairingUrlFromQrPayload(payload: string): string {
   const trimmed = payload.trim();
   if (!trimmed) {
@@ -78,7 +95,7 @@ export function extractPairingUrlFromQrPayload(payload: string): string {
 
   try {
     const url = new URL(trimmed);
-    if (url.protocol === "t3code:") {
+    if (url.protocol === "pocketcli:") {
       const pairingUrl = url.searchParams.get(MOBILE_PAIRING_URL_PARAM)?.trim() ?? "";
       if (pairingUrl.length > 0) {
         return pairingUrl;

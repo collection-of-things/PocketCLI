@@ -7,15 +7,17 @@
   "workspaces": {
     ".": {
       // Keep vendored reference repositories outside the root project.
-      "project": ["*.{js,mjs,cjs,ts,mts,cts}", ".github/**/*.cjs"],
-      "entry": [".github/scripts/thread-transfer-report.cjs"],
-      "vite": { "entry": [".github/**/*.test.cjs"] },
-      "vitest": { "entry": [".github/**/*.test.cjs"] },
+      "project": ["*.{js,mjs,cjs,ts,mts,cts}"],
     },
     "scripts": {
-      // Knip loads its preprocessor through a CLI option; native verification and
-      // worktree setup (from t3.json) run directly.
-      "entry": ["knip-schemas.ts", "mobile-native-client.ts", "setup-worktree.ts"],
+      // Knip loads its preprocessor through a CLI option; native verification,
+      // worktree setup (from t3.json), and the server archive (from CI) run directly.
+      "entry": [
+        "build-termux-server-archive.ts",
+        "knip-schemas.ts",
+        "mobile-native-client.ts",
+        "setup-worktree.ts",
+      ],
     },
     "apps/server": {
       // Vite+ pack entries and the launcher used by installed background services.
@@ -33,27 +35,6 @@
       // Keep the transitive Effect runtime pinned for standalone npm installs.
       // The Vite+ web build prerequisite.
       "ignoreDependencies": ["@effect/platform-node-shared", "@t3tools/web"],
-    },
-    "apps/desktop": {
-      // Electron loads these bundles by filename rather than importing them.
-      "entry": [
-        "gnome-extension/extension.js!",
-        "src/electron/WindowsForegroundFocusWorker.ts!",
-        "src/snapShot/GlobalShiftShortcutWorker.ts!",
-        "src/snapShot/RegionSnapShotWorker.ts!",
-        "src/snapShot/SnapShotAccessibilityWorker.ts!",
-        "src/boot.ts!",
-        "src/compileCache.ts!",
-        "src/main.ts!",
-        "src/preload.ts!",
-        "src/preview-pick-preload.ts!",
-        "src/preview-pip-preload.ts!",
-        "src/mac-permission-preload.ts!",
-        "src/preview/Annotation.css!",
-      ],
-      // The injected runtime resolves Playwright by string; release tooling runs
-      // electron-builder from this workspace, outside its package scripts.
-      "ignoreDependencies": ["playwright-core", "electron-builder"],
     },
     "apps/web": {
       // Vitest loads this through the per-file @vitest-environment directive.

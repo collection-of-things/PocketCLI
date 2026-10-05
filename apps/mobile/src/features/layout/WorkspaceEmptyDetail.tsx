@@ -5,6 +5,7 @@ import { AppText as Text } from "../../components/AppText";
 import { MaterialNewThreadButton } from "../../components/MaterialNewThreadButton";
 import { MaterialFloatingActionButton } from "../../components/MaterialFloatingActionButton";
 import { EmptyState } from "../../components/EmptyState";
+import { NO_ENVIRONMENTS_DETAIL } from "../connection/termuxSetup";
 
 export function WorkspaceEmptyDetail(props: {
   readonly onStartNewTask?: () => void;
@@ -22,7 +23,7 @@ export function WorkspaceEmptyDetail(props: {
         <View className="w-full max-w-[430px]">
           <EmptyState
             title="No environments connected"
-            detail="Add an environment to load projects and start coding sessions."
+            detail={NO_ENVIRONMENTS_DETAIL}
             variant="plain"
             action={
               <MaterialFloatingActionButton

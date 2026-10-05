@@ -3,6 +3,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   buildPairingUrl,
   extractPairingUrlFromQrPayload,
+  isLoopbackPairingUrl,
   PairingQrPayloadEmptyError,
   parsePairingUrl,
 } from "./pairing";
@@ -37,7 +38,7 @@ describe("extractPairingUrlFromQrPayload", () => {
   it("unwraps mobile deep links that carry an encoded pairing url", () => {
     expect(
       extractPairingUrlFromQrPayload(
-        "t3code://pair?pairingUrl=https%3A%2F%2Fremote.example.com%2Fpair%23token%3Dpairing-token",
+        "pocketcli://pair?pairingUrl=https%3A%2F%2Fremote.example.com%2Fpair%23token%3Dpairing-token",
       ),
     ).toBe("https://remote.example.com/pair#token=pairing-token");
   });
@@ -47,6 +48,26 @@ describe("extractPairingUrlFromQrPayload", () => {
     expect(() => extractPairingUrlFromQrPayload("   ")).toThrowError(
       "Scanned QR code did not contain a pairing URL.",
     );
+  });
+});
+
+describe("isLoopbackPairingUrl", () => {
+  it.each([
+    "http://127.0.0.1:13773/pair#token=abc",
+    "http://localhost:13773/#token=abc",
+    "http://[::1]:13773/pair#token=abc",
+  ])("accepts a same-device server: %s", (url) => {
+    expect(isLoopbackPairingUrl(url)).toBe(true);
+  });
+
+  it.each([
+    "http://10.0.2.2:13773/pair#token=abc",
+    "https://remote.example.com/pair#token=abc",
+    "http://127.0.0.1.evil.example/pair#token=abc",
+    "",
+    "not a url",
+  ])("rejects anything that is not loopback: %s", (url) => {
+    expect(isLoopbackPairingUrl(url)).toBe(false);
   });
 });
 

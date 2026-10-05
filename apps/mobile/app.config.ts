@@ -28,7 +28,7 @@ if (
     !IOS_BUNDLE_IDENTIFIER_PATTERN.test(personalTeamBundleIdentifier))
 ) {
   throw new Error(
-    "T3CODE_IOS_PERSONAL_TEAM_BUNDLE_ID must be a reverse-DNS identifier such as com.example.t3code when T3CODE_IOS_PERSONAL_TEAM=1.",
+    "T3CODE_IOS_PERSONAL_TEAM_BUNDLE_ID must be a reverse-DNS identifier such as com.example.pocketcli when T3CODE_IOS_PERSONAL_TEAM=1.",
   );
 }
 
@@ -73,30 +73,36 @@ const RELEASE_ASSETS = {
 
 const VARIANT_CONFIG = {
   development: {
-    appName: "T3 Code Dev",
-    scheme: "t3code-dev",
-    iosBundleIdentifier: "com.t3tools.t3code.dev",
-    androidPackage: "com.t3tools.t3code.dev",
-    relyingParty: "clerk.t3.codes",
+    appName: "PocketCLI Dev",
+    scheme: "pocketcli-dev",
+    iosBundleIdentifier: "com.pocketcli.app.dev",
+    androidPackage: "com.pocketcli.app.dev",
     assets: DEVELOPMENT_ASSETS,
   },
   preview: {
-    appName: "T3 Code Preview",
-    scheme: "t3code-preview",
-    iosBundleIdentifier: "com.t3tools.t3code.preview",
-    androidPackage: "com.t3tools.t3code.preview",
-    relyingParty: "clerk.t3.codes",
+    appName: "PocketCLI Preview",
+    scheme: "pocketcli-preview",
+    iosBundleIdentifier: "com.pocketcli.app.preview",
+    androidPackage: "com.pocketcli.app.preview",
     assets: PREVIEW_ASSETS,
   },
   production: {
-    appName: "T3 Code",
-    scheme: "t3code",
-    iosBundleIdentifier: "com.t3tools.t3code",
-    androidPackage: "com.t3tools.t3code",
-    relyingParty: "clerk.t3.codes",
+    appName: "PocketCLI",
+    scheme: "pocketcli",
+    iosBundleIdentifier: "com.pocketcli.app",
+    androidPackage: "com.pocketcli.app",
     assets: RELEASE_ASSETS,
   },
 } as const;
+
+// Hosted-service identity is owned by whoever builds the app, never by the repo.
+// Without an EAS project the app still builds and runs; it just has no OTA updates.
+const easProjectId = repoEnv.EAS_PROJECT_ID?.trim() || null;
+const easOwner = repoEnv.EAS_OWNER?.trim() || null;
+const appleTeamId = repoEnv.EXPO_APPLE_TEAM_ID?.trim() || null;
+// Relying party for Clerk passkeys and universal links. Only meaningful when a
+// relay + Clerk instance is configured; see docs/operations/connect-setup.md.
+const relyingParty = repoEnv.EXPO_PUBLIC_CLERK_RP_DOMAIN?.trim() || null;
 
 function resolveAppVariant(value: string | undefined): AppVariant {
   switch (value) {
@@ -134,7 +140,7 @@ const widgetsPlugin: NonNullable<ExpoConfig["plugins"]>[number] = [
       {
         name: "SubscriptionUsage",
         displayName: "Subscription usage",
-        description: "Subscription quotas from your connected T3 Code environments.",
+        description: "Subscription quotas from your connected PocketCLI environments.",
         ios: {
           configuration: {
             title: "Subscription usage",
@@ -185,7 +191,7 @@ const widgetsPlugin: NonNullable<ExpoConfig["plugins"]>[number] = [
       {
         name: "AgentActivity",
         displayName: "Agent Activity",
-        description: "Shows the current state of active T3 Code agents.",
+        description: "Shows the current state of active PocketCLI agents.",
         // Live Activity companion; there is no Android presentation for it.
         android: null,
         ios: { supportedFamilies: ["systemSmall", "systemMedium", "accessoryRectangular"] },
@@ -226,10 +232,11 @@ const sharingPlugin: NonNullable<ExpoConfig["plugins"]>[number] = [
 
 const config: ExpoConfig = {
   name: variant.appName,
-  slug: "t3-code",
+  slug: "pocketcli",
   platforms: ["ios", "android"],
   scheme: variant.scheme,
-  version: "2.0.0",
+  // Release builds (.github/workflows/android-release.yml) stamp their tag here.
+  version: repoEnv.POCKETCLI_APP_VERSION?.trim() || "2.0.0",
   runtimeVersion: {
     // Development manifests resolve on every launch, so avoid fingerprint's
     // expensive native-project calculation there. Preview and production stay
@@ -240,8 +247,8 @@ const config: ExpoConfig = {
   icon: variant.assets.appIcon,
   userInterfaceStyle: "automatic",
   updates: {
-    enabled: repoEnv.T3CODE_MOBILE_UPDATES_ENABLED !== "0",
-    url: "https://u.expo.dev/d763fcb8-d37c-41ea-a773-b54a0ab4a454",
+    enabled: easProjectId !== null && repoEnv.T3CODE_MOBILE_UPDATES_ENABLED !== "0",
+    ...(easProjectId ? { url: `https://u.expo.dev/${easProjectId}` } : {}),
     checkAutomatically: "ON_LOAD",
     fallbackToCacheTimeout: 0,
   },
@@ -252,14 +259,13 @@ const config: ExpoConfig = {
     // showcase capture build requires full screen (see infoPlist below).
     requireFullScreen: process.env.T3_SHOWCASE_CAPTURE_BUILD === "1",
     bundleIdentifier: iosBundleIdentifier,
-    // Pin code signing to the T3 Tools team so non-interactive `expo run:ios`
-    // does not fall back to a personal team (which cannot sign app groups,
-    // Sign in with Apple, or push notification entitlements).
-    appleTeamId: "ARK85ZXQ4Z",
-    associatedDomains: [
-      `applinks:${variant.relyingParty}`,
-      `webcredentials:${variant.relyingParty}`,
-    ],
+    // Pin code signing to one team so non-interactive `expo run:ios` does not
+    // fall back to a personal team (which cannot sign app groups, Sign in with
+    // Apple, or push notification entitlements).
+    ...(appleTeamId ? { appleTeamId } : {}),
+    ...(relyingParty
+      ? { associatedDomains: [`applinks:${relyingParty}`, `webcredentials:${relyingParty}`] }
+      : {}),
     entitlements: {
       "keychain-access-groups": [`$(AppIdentifierPrefix)${variant.iosBundleIdentifier}`],
     },
@@ -268,8 +274,8 @@ const config: ExpoConfig = {
         NSAllowsArbitraryLoads: true,
       },
       NSLocalNetworkUsageDescription:
-        "Allow T3 Code to connect to T3 Code servers on your local network or tailnet.",
-      NSPhotoLibraryAddUsageDescription: "Allow T3 Code to save images to your photo library.",
+        "Allow PocketCLI to connect to PocketCLI servers on your local network or tailnet.",
+      NSPhotoLibraryAddUsageDescription: "Allow PocketCLI to save images to your photo library.",
       ITSAppUsesNonExemptEncryption: false,
       // The App Store screenshot harness rotates the iPad interface from
       // inside the app (CI denies osascript the Accessibility access that
@@ -291,6 +297,9 @@ const config: ExpoConfig = {
   android: {
     icon: variant.assets.appIcon,
     package: variant.androidPackage,
+    ...(repoEnv.POCKETCLI_ANDROID_VERSION_CODE
+      ? { versionCode: Number(repoEnv.POCKETCLI_ANDROID_VERSION_CODE) }
+      : {}),
     ...(repoEnv.T3CODE_ANDROID_GOOGLE_SERVICES_FILE
       ? { googleServicesFile: repoEnv.T3CODE_ANDROID_GOOGLE_SERVICES_FILE }
       : {}),
@@ -374,7 +383,7 @@ const config: ExpoConfig = {
     [
       "expo-audio",
       {
-        microphonePermission: "Allow T3 Code to use your microphone for voice input.",
+        microphonePermission: "Allow PocketCLI to use your microphone for voice input.",
         recordAudioAndroid: false,
         enableBackgroundPlayback: false,
         enableBackgroundRecording: false,
@@ -383,7 +392,7 @@ const config: ExpoConfig = {
     [
       "expo-camera",
       {
-        cameraPermission: "Allow T3 Code to access your camera so you can scan pairing QR codes.",
+        cameraPermission: "Allow PocketCLI to access your camera so you can scan pairing QR codes.",
         microphonePermission: false,
         barcodeScannerEnabled: true,
         recordAudioAndroid: false,
@@ -418,6 +427,10 @@ const config: ExpoConfig = {
         android: {
           // Keep the supported floor explicit and covered by native notification tests.
           minSdkVersion: 24,
+          // Extract native libraries to disk. The on-device server
+          // (modules/t3-local-server) executes libnode.so from there, since
+          // Android only allows executing files shipped as native libraries.
+          useLegacyPackaging: true,
           // kotlinx-io uses Kotlin 2.3's return-value checker annotation, while
           // SDK 58 builds with Kotlin 2.2. It has no runtime behavior.
           //
@@ -484,11 +497,9 @@ const config: ExpoConfig = {
       tracesDataset: repoEnv.EXPO_PUBLIC_OTLP_TRACES_DATASET ?? null,
       tracesToken: repoEnv.EXPO_PUBLIC_OTLP_TRACES_TOKEN ?? null,
     },
-    eas: {
-      projectId: "d763fcb8-d37c-41ea-a773-b54a0ab4a454",
-    },
+    ...(easProjectId ? { eas: { projectId: easProjectId } } : {}),
   },
-  owner: "pingdotgg",
+  ...(easOwner ? { owner: easOwner } : {}),
 };
 
 export default config;

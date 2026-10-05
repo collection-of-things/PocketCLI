@@ -31,8 +31,12 @@ import { isWorkspaceImagePreviewPath } from "@t3tools/shared/filePreview";
 // library. A static `import` of an external package is a hard error inside a
 // Node single-executable (only built-ins resolve there), so load it through
 // `require`, which reads from the real filesystem in every runtime.
+// Loaded on first use rather than at import: a platform without a fff binary
+// (Android under Termux) must still start the server. File search then fails
+// with WorkspaceSearchIndexCreateFailed instead of taking the process down.
 const requireForFff = NodeModule.createRequire(import.meta.url);
-const { FileFinder } = requireForFff("@ff-labs/fff-node") as typeof import("@ff-labs/fff-node");
+const loadFileFinder = () =>
+  (requireForFff("@ff-labs/fff-node") as typeof import("@ff-labs/fff-node")).FileFinder;
 
 const WORKSPACE_INDEX_MAX_ENTRIES = 25_000;
 const WORKSPACE_INDEX_PAGE_SIZE = WORKSPACE_INDEX_MAX_ENTRIES + 2;
@@ -304,6 +308,15 @@ const createFinder = Effect.fn("WorkspaceSearchIndex.createFinder")(function* (
   cwd: string,
   variant: WorkspaceSearchIndexVariant,
 ) {
+  const FileFinder = yield* Effect.try({
+    try: loadFileFinder,
+    catch: (cause) =>
+      new WorkspaceSearchIndexCreateFailed({
+        cwd,
+        reason: "The @ff-labs/fff-node native library could not be loaded on this platform.",
+        cause,
+      }),
+  });
   const result = yield* Effect.try({
     try: () =>
       FileFinder.create({

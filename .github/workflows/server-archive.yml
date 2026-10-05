@@ -1,0 +1,65 @@
+name: Server Archive
+
+# Builds the prebuilt server bundle that the Termux installer downloads
+# (scripts/termux/pocketcli fetches the `server-latest` release asset). Phones
+# cannot build this repo themselves, so every push to main refreshes that
+# rolling prerelease.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: server-archive
+  cancel-in-progress: true
+
+jobs:
+  archive:
+    name: Build and publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            /*
+            !/.repos/
+          sparse-checkout-cone-mode: false
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: true
+
+      - name: Build web client
+        run: vp run --filter @t3tools/web build
+
+      - name: Build server bundle
+        run: vp run --filter t3 build:bundle
+
+      - name: Stage archive
+        run: node scripts/build-termux-server-archive.ts
+
+      - name: Publish to the server-latest prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag=server-latest
+          notes="Rolling prebuilt server for the Termux installer. Built from ${GITHUB_SHA}."
+          git tag -f "$tag" "$GITHUB_SHA"
+          git push --force origin "refs/tags/$tag"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release edit "$tag" --notes "$notes"
+          else
+            gh release create "$tag" --prerelease --title "Server (latest main)" --notes "$notes"
+          fi
+          gh release upload "$tag" release/pocketcli-server.tar.gz --clobber

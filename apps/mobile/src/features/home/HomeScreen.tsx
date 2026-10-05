@@ -46,6 +46,7 @@ import {
   ThreadListV2SnoozedShelfHeader,
   ThreadListV2WorkingShelfHeader,
 } from "../threads/thread-list-v2-items";
+import { NO_ENVIRONMENTS_DETAIL } from "../connection/termuxSetup";
 import { useThreadRowProviderInstanceResolver } from "../threads/thread-provider-instance";
 import {
   buildThreadListV2Items,
@@ -164,7 +165,7 @@ function deriveEmptyState(props: {
   if (!catalogState.hasConnections) {
     return {
       title: "No environments connected",
-      detail: "Add an environment to load projects and start coding sessions.",
+      detail: NO_ENVIRONMENTS_DETAIL,
       loading: false,
     };
   }

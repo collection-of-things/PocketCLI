@@ -1,0 +1,129 @@
+name: Android Runtime
+
+# Builds what the Android app embeds to run the server on the phone
+# (apps/mobile/modules/t3-local-server): Node and node-pty compiled with the
+# Android NDK, plus the bundled server. Publishes the rolling
+# `android-runtime-latest` prerelease that apps/mobile/scripts/fetch-android-runtime.ts
+# downloads before an Android build.
+#
+# Node takes well over an hour to compile, so it is cached per version and only
+# rebuilt when NODE_ANDROID_VERSION, ANDROID_API, or NDK_VERSION changes.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Never cancel: a cancelled run would throw away a Node build in progress. Newer
+# pushes queue behind it and the pending one is replaced by the latest.
+concurrency:
+  group: android-runtime
+  cancel-in-progress: false
+
+env:
+  NODE_ANDROID_VERSION: v22.23.3
+  # Android 10. codex-termux targets the same floor; LocalServer.kt enforces it.
+  ANDROID_API: "29"
+  NDK_VERSION: r27c
+
+jobs:
+  native:
+    name: Node and node-pty for Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            /*
+            !/.repos/
+          sparse-checkout-cone-mode: false
+
+      - name: Restore Node build
+        id: node-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: native/libnode.so
+          key: libnode-android-arm64-${{ env.NODE_ANDROID_VERSION }}-api${{ env.ANDROID_API }}-${{ env.NDK_VERSION }}-v1
+
+      - name: Set up the Android NDK
+        id: ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: ${{ env.NDK_VERSION }}
+          add-to-path: false
+
+      - name: Build Node
+        if: steps.node-cache.outputs.cache-hit != 'true'
+        env:
+          NDK: ${{ steps.ndk.outputs.ndk-path }}
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://nodejs.org/dist/${NODE_ANDROID_VERSION}/node-${NODE_ANDROID_VERSION}.tar.xz" | tar -xJ -C "$RUNNER_TEMP"
+          cd "$RUNNER_TEMP/node-${NODE_ANDROID_VERSION}"
+          ./android-configure patch
+          ./android-configure "$NDK" "$ANDROID_API" arm64
+          make -j"$(nproc)"
+          mkdir -p "$GITHUB_WORKSPACE/native"
+          "$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" out/Release/node -o "$GITHUB_WORKSPACE/native/libnode.so"
+
+      # Saved right away so a later failing step does not cost another Node build.
+      - name: Save Node build
+        if: steps.node-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: native/libnode.so
+          key: ${{ steps.node-cache.outputs.cache-primary-key }}
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: true
+
+      # Uses the repo's (patched) node-pty sources. Bionic provides openpty and
+      # forkpty in libc, so the Linux `-lutil` link flag is dropped.
+      - name: Build node-pty
+        env:
+          NDK: ${{ steps.ndk.outputs.ndk-path }}
+        run: |
+          set -euo pipefail
+          src="$(node -p "require('path').dirname(require.resolve('node-pty/package.json', { paths: ['apps/server'] }))")"
+          work="$RUNNER_TEMP/node-pty"
+          cp -rL "$src" "$work"
+          cd "$work"
+          sed -i "s/'-lutil'//g" binding.gyp
+          tc="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          export CC="$tc/aarch64-linux-android${ANDROID_API}-clang"
+          export CXX="$tc/aarch64-linux-android${ANDROID_API}-clang++"
+          export LINK="$CXX" AR="$tc/llvm-ar"
+          npx --yes node-gyp@11 rebuild --target="${NODE_ANDROID_VERSION#v}" --arch=arm64 -- -DOS=android
+          "$tc/llvm-strip" build/Release/pty.node -o "$GITHUB_WORKSPACE/native/libnodepty.so"
+
+      - name: Build server bundle
+        run: vp run --filter t3 build:bundle
+
+      - name: Assemble runtime
+        run: node scripts/build-android-runtime.ts --libnode native/libnode.so --libnodepty native/libnodepty.so
+
+      - name: Publish to the android-runtime-latest prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag=android-runtime-latest
+          notes="Rolling runtime for the Android app's on-device server. Node ${NODE_ANDROID_VERSION}, API ${ANDROID_API}. Built from ${GITHUB_SHA}."
+          git tag -f "$tag" "$GITHUB_SHA"
+          git push --force origin "refs/tags/$tag"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release edit "$tag" --notes "$notes"
+          else
+            gh release create "$tag" --prerelease --title "Android runtime (latest main)" --notes "$notes"
+          fi
+          gh release upload "$tag" release/pocketcli-android-runtime.tar.gz --clobber

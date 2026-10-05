@@ -16,7 +16,14 @@ import { AppText as Text } from "../../components/AppText";
 import { ErrorBanner } from "../../components/ErrorBanner";
 import { ConnectionFormField } from "./ConnectionFormField";
 import { ConnectionSheetButton } from "./ConnectionSheetButton";
-import { buildPairingUrl, extractPairingUrlFromQrPayload, parsePairingUrl } from "./pairing";
+import {
+  buildPairingUrl,
+  extractPairingUrlFromQrPayload,
+  isLoopbackPairingUrl,
+  parsePairingUrl,
+} from "./pairing";
+import { TermuxSetupCard } from "./TermuxSetupCard";
+import { TERMUX_SETUP_AVAILABLE } from "./termuxSetup";
 import { useRemoteConnections } from "../../state/use-remote-environment-registry";
 
 type ConnectionsNewRouteParams = {
@@ -37,9 +44,14 @@ export function ConnectionsNewRouteScreen({
   const navigation = useNavigation();
   const routeName = useRoute().name;
   const params = route.params ?? {};
-  // Deep-link prefill exists for development automation only. A production
-  // link must not arrive with attacker-chosen host and token already filled.
-  const routePairingUrl = __DEV__ ? (params.pairingUrl?.trim() ?? "") : "";
+  // Deep-link prefill is limited to two cases. Development automation may pass
+  // any URL. Production accepts only a loopback server: `pocketcli pair` in
+  // Termux hands its link over this way, and the user still confirms by
+  // tapping Add environment. A remote host and token chosen by another app on
+  // the phone must never arrive pre-filled.
+  const requestedPairingUrl = params.pairingUrl?.trim() ?? "";
+  const routePairingUrl =
+    __DEV__ || isLoopbackPairingUrl(requestedPairingUrl) ? requestedPairingUrl : "";
   const shouldAutoConnect =
     __DEV__ &&
     routePairingUrl.length > 0 &&
@@ -242,40 +254,43 @@ export function ConnectionsNewRouteScreen({
               </View>
             )
           ) : (
-            <View collapsable={false} className="gap-4 rounded-[24px] bg-grouped-card p-4">
-              <ConnectionFormField
-                label="Host"
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="url"
-                placeholder="192.168.1.100:8080"
-                value={hostInput}
-                onChangeText={handleHostChange}
-              />
-
-              <ConnectionFormField
-                label="Pairing code"
-                autoCapitalize="none"
-                autoCorrect={false}
-                placeholder="abc-123-xyz"
-                value={codeInput}
-                onChangeText={handleCodeChange}
-              />
-
-              {pairingConnectionError ? <ErrorBanner message={pairingConnectionError} /> : null}
-
-              <View className="android:flex-row android:justify-end">
-                <ConnectionSheetButton
-                  icon="plus"
-                  label={isSubmitting ? "Pairing..." : "Add environment"}
-                  disabled={connectDisabled}
-                  tone="primary"
-                  onPress={() => {
-                    void handleSubmit();
-                  }}
+            <>
+              {TERMUX_SETUP_AVAILABLE && hostInput.length === 0 ? <TermuxSetupCard /> : null}
+              <View collapsable={false} className="gap-4 rounded-[24px] bg-grouped-card p-4">
+                <ConnectionFormField
+                  label="Host"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="url"
+                  placeholder="192.168.1.100:8080"
+                  value={hostInput}
+                  onChangeText={handleHostChange}
                 />
+
+                <ConnectionFormField
+                  label="Pairing code"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  placeholder="abc-123-xyz"
+                  value={codeInput}
+                  onChangeText={handleCodeChange}
+                />
+
+                {pairingConnectionError ? <ErrorBanner message={pairingConnectionError} /> : null}
+
+                <View className="android:flex-row android:justify-end">
+                  <ConnectionSheetButton
+                    icon="plus"
+                    label={isSubmitting ? "Pairing..." : "Add environment"}
+                    disabled={connectDisabled}
+                    tone="primary"
+                    onPress={() => {
+                      void handleSubmit();
+                    }}
+                  />
+                </View>
               </View>
-            </View>
+            </>
           )}
         </View>
       </ScrollView>

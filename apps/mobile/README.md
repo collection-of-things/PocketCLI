@@ -1,7 +1,7 @@
-# T3 Code Mobile
+# PocketCLI Mobile
 
 > [!WARNING]
-> T3 Code Mobile is currently in development and is not distributed yet. If you want to try it out, you can build it from source.
+> PocketCLI Mobile is currently in development and is not distributed yet. If you want to try it out, you can build it from source.
 
 ## Quickstart
 
@@ -10,9 +10,9 @@
 
 This app has three variants:
 
-- `development`: Expo dev client, installable side-by-side as `T3 Code Dev`
-- `preview`: persistent internal preview build, installable side-by-side as `T3 Code Preview`
-- `production`: store/release build as `T3 Code`
+- `development`: Expo dev client, installable side-by-side as `PocketCLI Dev`
+- `preview`: persistent internal preview build, installable side-by-side as `PocketCLI Preview`
+- `production`: store/release build as `PocketCLI`
 
 Run commands from `apps/mobile`.
 
@@ -72,7 +72,7 @@ entitlement, and native Sign in with Apple entitlement; builds without this opt-
 
 ```bash
 T3CODE_IOS_PERSONAL_TEAM=1 \
-T3CODE_IOS_PERSONAL_TEAM_BUNDLE_ID=com.example.t3code.dev \
+T3CODE_IOS_PERSONAL_TEAM_BUNDLE_ID=com.example.pocketcli.dev \
 vp run ios:dev
 ```
 
@@ -86,7 +86,7 @@ The Personal Team equivalent also needs a unique bundle identifier:
 
 ```bash
 T3CODE_IOS_PERSONAL_TEAM=1 \
-T3CODE_IOS_PERSONAL_TEAM_BUNDLE_ID=com.example.t3code \
+T3CODE_IOS_PERSONAL_TEAM_BUNDLE_ID=com.example.pocketcli \
 vp run ios:release
 ```
 
@@ -120,6 +120,12 @@ node ../../scripts/mobile-native-static-check.ts
 The native lint task runs SwiftLint for Swift plus ktlint and detekt for Kotlin. Missing native tools are reported as warnings and skipped locally. CI installs the default toolset from `apps/mobile/Brewfile` before running the native checks.
 
 ## EAS Builds
+
+The repository ships without an EAS project, Expo account, or Apple team baked in. Before the first
+EAS build, create your own project (`eas init` from `apps/mobile`) and put its id and owner in the
+repository-root `.env` as `EAS_PROJECT_ID` and `EAS_OWNER`. Add `EXPO_APPLE_TEAM_ID` for
+non-interactive iOS signing. Without `EAS_PROJECT_ID` the app still builds locally, with OTA updates
+disabled.
 
 Preview and production variants use Expo fingerprinting so OTA updates only reach binaries with matching native dependencies, config plugins, and patches. CI uses the `preview:dev` profile to reuse a compatible native build when possible.
 
