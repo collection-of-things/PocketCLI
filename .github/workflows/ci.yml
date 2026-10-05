@@ -9,16 +9,17 @@ on:
 permissions:
   contents: read
 
+# A newer push to the same branch or PR replaces a run still in progress.
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.sha }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   # Lint and typecheck each get a runner so they run side by side. The `Check`
   # job at the end of this file passes only when every other job does.
   lint:
     name: Lint
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -53,7 +54,7 @@ jobs:
 
   typecheck:
     name: Typecheck
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -80,7 +81,7 @@ jobs:
   # workspace deps from source.
   test:
     name: Test
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -112,7 +113,7 @@ jobs:
 
   test_web:
     name: Test Web
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -139,7 +140,7 @@ jobs:
   # (apps/server/src/testUtils/weightedShardSequencer.ts).
   test_server:
     name: Test Server ${{ matrix.shard }}
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     timeout-minutes: 15
     strategy:
       fail-fast: false
@@ -166,7 +167,7 @@ jobs:
 
   rust:
     name: Rust
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -223,7 +224,7 @@ jobs:
     name: Check
     if: ${{ always() }}
     needs: [lint, typecheck, test, test_web, test_server, rust, mobile_native_static_analysis]
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     timeout-minutes: 5
     steps:
       - name: Require every job to pass

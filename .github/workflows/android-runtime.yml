@@ -9,10 +9,21 @@ name: Android Runtime
 # Node takes well over an hour to compile, so it is cached per version and only
 # rebuilt when NODE_ANDROID_VERSION, ANDROID_API, or NDK_VERSION changes.
 
+# Only when something the runtime packages changes: the server and the packages
+# it bundles, the runtime scripts, or this workflow. A release tag with no new
+# runtime build uses the last published one (see android-release.yml).
 on:
   push:
     branches:
       - main
+    paths:
+      - "apps/server/**"
+      - "packages/**"
+      - "scripts/build-android-runtime.ts"
+      - "scripts/lib/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/android-runtime.yml"
   workflow_dispatch:
 
 permissions:
