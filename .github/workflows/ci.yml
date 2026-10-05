@@ -18,7 +18,7 @@ jobs:
   # job at the end of this file passes only when every other job does.
   lint:
     name: Lint
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -53,7 +53,7 @@ jobs:
 
   typecheck:
     name: Typecheck
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -80,7 +80,7 @@ jobs:
   # workspace deps from source.
   test:
     name: Test
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -112,7 +112,7 @@ jobs:
 
   test_web:
     name: Test Web
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -139,7 +139,7 @@ jobs:
   # (apps/server/src/testUtils/weightedShardSequencer.ts).
   test_server:
     name: Test Server ${{ matrix.shard }}
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 15
     strategy:
       fail-fast: false
@@ -166,7 +166,7 @@ jobs:
 
   rust:
     name: Rust
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -223,7 +223,7 @@ jobs:
     name: Check
     if: ${{ always() }}
     needs: [lint, typecheck, test, test_web, test_server, rust, mobile_native_static_analysis]
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 5
     steps:
       - name: Require every job to pass

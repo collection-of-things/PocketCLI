@@ -33,7 +33,7 @@ env:
 jobs:
   native:
     name: Node and node-pty for Android
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-8vcpu-ubuntu-2404
     timeout-minutes: 340
     steps:
       - name: Checkout
