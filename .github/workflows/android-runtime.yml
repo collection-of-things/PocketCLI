@@ -34,7 +34,7 @@ jobs:
   native:
     name: Node and node-pty for Android
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 340
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -58,23 +58,54 @@ jobs:
           ndk-version: ${{ env.NDK_VERSION }}
           add-to-path: false
 
+      # Compiler cache for the Node build. Saved even when the build fails, so a
+      # retry only recompiles what changed instead of starting a 2h build over.
+      - name: Restore compiler cache
+        if: steps.node-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-node-android-${{ env.NODE_ANDROID_VERSION }}-${{ env.NDK_VERSION }}-${{ github.run_id }}
+          restore-keys: ccache-node-android-${{ env.NODE_ANDROID_VERSION }}-${{ env.NDK_VERSION }}-
+
       - name: Build Node
         if: steps.node-cache.outputs.cache-hit != 'true'
         env:
           NDK: ${{ steps.ndk.outputs.ndk-path }}
+          CCACHE_MAXSIZE: 5G
+          CCACHE_COMPILERCHECK: content
         run: |
           set -euo pipefail
+          sudo apt-get install -y -qq ccache >/dev/null
+          export CCACHE_DIR="$HOME/.cache/ccache"
           curl -fsSL "https://nodejs.org/dist/${NODE_ANDROID_VERSION}/node-${NODE_ANDROID_VERSION}.tar.xz" | tar -xJ -C "$RUNNER_TEMP"
           cd "$RUNNER_TEMP/node-${NODE_ANDROID_VERSION}"
+          # Turn V8's WebAssembly trap handler off outright, as Node's own
+          # android-patches/trap-handler.h.patch does (that patch no longer applies
+          # to Node 22's header). Otherwise the host mksnapshot, which simulates
+          # arm64, links trap-handler code the Android build never compiles.
+          perl -0pi -e 's{// X64 on Linux, Windows, MacOS, FreeBSD\.\n.*?#else\n#define V8_TRAP_HANDLER_SUPPORTED false\n#endif\n}{#define V8_TRAP_HANDLER_SUPPORTED false\n}s or die "trap-handler.h changed; update this patch\n"' deps/v8/src/trap-handler/trap-handler.h
           # Host tools (torque, mksnapshot) run on this runner during the build,
-          # so they need the runner's compiler, not the NDK's. Node 22's V8
-          # already disables the trap handler on Android, so the
-          # `android-configure patch` step is not needed (its hunk no longer applies).
-          export CC_host=gcc CXX_host=g++ LINK_host=g++ AR_host=ar
+          # so they need the runner's compiler, not the NDK's. gyp prefers the
+          # *_host/*_target variables over the CC that android-configure sets.
+          tc="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          export CC_host="ccache gcc" CXX_host="ccache g++" LINK_host=g++ AR_host=ar
+          export CC_target="ccache $tc/aarch64-linux-android${ANDROID_API}-clang"
+          export CXX_target="ccache $tc/aarch64-linux-android${ANDROID_API}-clang++"
+          export LINK_target="$tc/aarch64-linux-android${ANDROID_API}-clang++"
           ./android-configure "$NDK" "$ANDROID_API" arm64
+          ccache -z
           make -j"$(nproc)"
+          ccache -s
           mkdir -p "$GITHUB_WORKSPACE/native"
-          "$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" out/Release/node -o "$GITHUB_WORKSPACE/native/libnode.so"
+          "$tc/llvm-strip" out/Release/node -o "$GITHUB_WORKSPACE/native/libnode.so"
+
+      - name: Save compiler cache
+        if: always() && steps.node-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-node-android-${{ env.NODE_ANDROID_VERSION }}-${{ env.NDK_VERSION }}-${{ github.run_id }}
 
       # Saved right away so a later failing step does not cost another Node build.
       - name: Save Node build
