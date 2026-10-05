@@ -52,7 +52,7 @@ jobs:
         run: |
           set -euo pipefail
           for attempt in $(seq 1 150); do
-            state="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow android-runtime.yml --commit "$GITHUB_SHA" --limit 1 --json status,conclusion --jq '.[0] | "\(.status) \(.conclusion)"' || true)"
+            state="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow android-runtime.yml --commit "$GITHUB_SHA" --limit 1 --json status,conclusion --jq '.[0] // empty | "\(.status) \(.conclusion)"' || true)"
             case "$state" in
               "") echo "No runtime run for this commit; using the latest published runtime."; break ;;
               "completed success") echo "Runtime for $GITHUB_SHA is published."; break ;;
