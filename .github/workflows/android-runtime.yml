@@ -85,6 +85,12 @@ jobs:
           # to Node 22's header). Otherwise the host mksnapshot, which simulates
           # arm64, links trap-handler code the Android build never compiles.
           perl -0pi -e 's{// X64 on Linux, Windows, MacOS, FreeBSD\.\n.*?#else\n#define V8_TRAP_HANDLER_SUPPORTED false\n#endif\n}{#define V8_TRAP_HANDLER_SUPPORTED false\n}s or die "trap-handler.h changed; update this patch\n"' deps/v8/src/trap-handler/trap-handler.h
+          # zlib's Android CPU detection calls the NDK's cpufeatures library, which
+          # Node's gyp files never link. On arm64, use zlib's Linux path instead:
+          # getauxval(AT_HWCAP), which bionic provides.
+          printf '%s\n' '#if defined(ARMV8_OS_ANDROID) && defined(__aarch64__)' '#undef ARMV8_OS_ANDROID' '#define ARMV8_OS_LINUX' '#endif' \
+            | cat - deps/zlib/cpu_features.c > "$RUNNER_TEMP/cpu_features.c"
+          mv "$RUNNER_TEMP/cpu_features.c" deps/zlib/cpu_features.c
           # Host tools (torque, mksnapshot) run on this runner during the build,
           # so they need the runner's compiler, not the NDK's. gyp prefers the
           # *_host/*_target variables over the CC that android-configure sets.
