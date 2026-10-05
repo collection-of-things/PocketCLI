@@ -147,7 +147,10 @@ jobs:
           export CC="$tc/aarch64-linux-android${ANDROID_API}-clang"
           export CXX="$tc/aarch64-linux-android${ANDROID_API}-clang++"
           export LINK="$CXX" AR="$tc/llvm-ar"
-          npx --yes node-gyp@11 rebuild --target="${NODE_ANDROID_VERSION#v}" --arch=arm64 -- -DOS=android
+          # The same gyp variables android-configure sets for Node itself; Node's
+          # common.gypi reads them when OS=android.
+          npx --yes node-gyp@11 rebuild --target="${NODE_ANDROID_VERSION#v}" --arch=arm64 -- \
+            -DOS=android -Dandroid_ndk_path="$NDK" -Dandroid_target_arch=arm64 -Dhost_os=linux
           "$tc/llvm-strip" build/Release/pty.node -o "$GITHUB_WORKSPACE/native/libnodepty.so"
 
       - name: Build server bundle
