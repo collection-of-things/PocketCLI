@@ -16,15 +16,24 @@ class T3LocalServerModule : Module() {
 
     // Runs on a background queue; blocks until the server accepts connections.
     AsyncFunction("start") {
-      val context = appContext.reactContext ?: throw CodedException("ERR_NO_CONTEXT", "No Android context.", null)
+      val context = appContext.reactContext
+        ?: throw CodedException("ERR_NO_CONTEXT", "No Android context.", null)
       if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-        throw CodedException("ERR_LOCAL_SERVER_UNSUPPORTED", "The on-device server needs Android 10 or newer.", null)
+        throw CodedException(
+          "ERR_LOCAL_SERVER_UNSUPPORTED",
+          "The on-device server needs Android 10 or newer.",
+          null
+        )
       }
       LocalServerService.start(context)
       val endpoint = try {
         LocalServer.ensureStarted(context)
       } catch (error: Exception) {
-        throw CodedException("ERR_LOCAL_SERVER_START", error.message ?: "The server failed to start.", error)
+        throw CodedException(
+          "ERR_LOCAL_SERVER_START",
+          error.message ?: "The server failed to start.",
+          error
+        )
       }
       mapOf("httpBaseUrl" to endpoint.httpBaseUrl, "bootstrapToken" to endpoint.bootstrapToken)
     }

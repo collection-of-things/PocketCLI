@@ -32,7 +32,9 @@ object LocalServer {
   data class Endpoint(val httpBaseUrl: String, val bootstrapToken: String)
 
   private val lock = Any()
+
   @Volatile private var process: Process? = null
+
   @Volatile private var endpoint: Endpoint? = null
 
   /** Android 10 is the floor: the bundled Node and the codex-termux build both target API 29. */
@@ -43,9 +45,13 @@ object LocalServer {
       nodeBinary(context).exists() &&
       runCatching { context.assets.open(ARCHIVE_ASSET).close() }.isSuccess
 
-  fun currentEndpoint(): Endpoint? = endpoint?.takeIf { process?.isAlive == true }
+  @RequiresApi(Build.VERSION_CODES.Q)
+  private fun currentEndpoint(): Endpoint? = endpoint?.takeIf { process?.isAlive == true }
 
-  /** Starts the server if it is not running and blocks until it accepts connections. Never call on the main thread. */
+  /**
+   * Starts the server if it is not running and blocks until it accepts
+   * connections. Never call on the main thread.
+   */
   @RequiresApi(Build.VERSION_CODES.Q)
   fun ensureStarted(context: Context): Endpoint = synchronized(lock) {
     currentEndpoint()?.let { return it }
@@ -86,11 +92,13 @@ object LocalServer {
     val pid = File(root, "server.pid")
   }
 
-  private fun nodeBinary(context: Context) = File(context.applicationInfo.nativeLibraryDir, "libnode.so")
+  private fun nodeBinary(context: Context) =
+    File(context.applicationInfo.nativeLibraryDir, "libnode.so")
 
   private fun unpackServer(context: Context, dirs: Dirs): File {
     @Suppress("DEPRECATION")
-    val installStamp = context.packageManager.getPackageInfo(context.packageName, 0).lastUpdateTime.toString()
+    val installStamp =
+      context.packageManager.getPackageInfo(context.packageName, 0).lastUpdateTime.toString()
     val stampFile = File(dirs.server, ".install-stamp")
     if (stampFile.exists() && stampFile.readText() == installStamp) return dirs.server
 
@@ -100,7 +108,9 @@ object LocalServer {
     ZipInputStream(context.assets.open(ARCHIVE_ASSET).buffered()).use { zip ->
       generateSequence { zip.nextEntry }.forEach { entry ->
         val target = File(dirs.server, entry.name)
-        require(target.canonicalPath.startsWith(root)) { "Unsafe path in server archive: ${entry.name}" }
+        require(target.canonicalPath.startsWith(root)) {
+          "Unsafe path in server archive: ${entry.name}"
+        }
         if (entry.isDirectory) {
           target.mkdirs()
         } else {
@@ -149,7 +159,9 @@ object LocalServer {
 
     // The shell records the server's pid before exec-ing it, so a later launch can
     // stop a server that outlived its app process.
-    val command = "echo \$\$ > \"\$POCKETCLI_PID_FILE\" && exec \"\$POCKETCLI_NODE\" \"\$POCKETCLI_ENTRY\" --bootstrap-fd 0"
+    val command =
+      "echo \$\$ > \"\$POCKETCLI_PID_FILE\" && " +
+        "exec \"\$POCKETCLI_NODE\" \"\$POCKETCLI_ENTRY\" --bootstrap-fd 0"
     val builder = ProcessBuilder("/system/bin/sh", "-c", command)
       .directory(dirs.home)
       .redirectOutput(ProcessBuilder.Redirect.appendTo(dirs.log))
@@ -166,7 +178,10 @@ object LocalServer {
     }
     val started = builder.start()
     // The server reads one JSON line from fd 0 at startup (DesktopBackendBootstrap).
-    started.outputStream.bufferedWriter().use { it.write(bootstrapEnvelope(dirs, token)); it.newLine() }
+    started.outputStream.bufferedWriter().use {
+      it.write(bootstrapEnvelope(dirs, token))
+      it.newLine()
+    }
     return started
   }
 
@@ -183,6 +198,7 @@ object LocalServer {
       .put("tailscaleServePort", 443)
       .toString()
 
+  @RequiresApi(Build.VERSION_CODES.Q)
   private fun waitUntilListening(started: Process, dirs: Dirs) {
     val deadline = System.currentTimeMillis() + READY_TIMEOUT_MS
     while (System.currentTimeMillis() < deadline) {
@@ -195,7 +211,9 @@ object LocalServer {
       if (listening) return
       Thread.sleep(250)
     }
-    throw IllegalStateException("The server did not start within ${READY_TIMEOUT_MS / 1000}s.\n${logTail(dirs)}")
+    throw IllegalStateException(
+      "The server did not start within ${READY_TIMEOUT_MS / 1000}s.\n${logTail(dirs)}"
+    )
   }
 
   private fun logTail(dirs: Dirs): String =

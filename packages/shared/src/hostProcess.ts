@@ -88,7 +88,7 @@ export const HostProcessIsExecutable = Context.Reference<boolean>(
  *
  * Best effort: a failed lookup just leaves the interface set.
  */
-export const HostProcessAddresses = Context.Reference<Effect.Effect<ReadonlySet<string>>>(
+const HostProcessAddresses = Context.Reference<Effect.Effect<ReadonlySet<string>>>(
   "@t3tools/shared/hostProcess/HostProcessAddresses",
   {
     defaultValue: () =>
