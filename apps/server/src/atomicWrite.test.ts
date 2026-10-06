@@ -7,7 +7,7 @@ import * as Layer from "effect/Layer";
 import * as Path from "effect/Path";
 import * as PlatformError from "effect/PlatformError";
 
-import { writeFileStringAtomically } from "./atomicWrite.ts";
+import { publishWithoutReplacing, writeFileStringAtomically } from "./atomicWrite.ts";
 
 it.layer(NodeServices.layer)("writeFileStringAtomically", (it) => {
   it.effect("keeps a symlinked file linked and rewrites its destination", () =>
@@ -137,3 +137,65 @@ it.effect("surfaces an unreadable link instead of writing over it", () =>
     ),
   ),
 );
+
+it.layer(NodeServices.layer)("publishWithoutReplacing", (it) => {
+  it.effect("publishes the file and leaves an existing one in place", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-publish-" });
+      const destination = path.join(root, "environment-id");
+      const first = path.join(root, "first");
+      const second = path.join(root, "second");
+      yield* fs.writeFileString(first, "first");
+      yield* fs.writeFileString(second, "second");
+
+      yield* publishWithoutReplacing(first, destination);
+      yield* publishWithoutReplacing(second, destination);
+
+      assert.strictEqual(yield* fs.readFileString(destination), "first");
+    }),
+  );
+});
+
+// Android denies hard links in app storage; everything else behaves normally.
+const noHardLinks = Layer.merge(
+  NodeServices.layer,
+  Layer.effect(
+    FileSystem.FileSystem,
+    Effect.map(FileSystem.FileSystem, (fs) => ({
+      ...fs,
+      link: (fromPath: string) =>
+        Effect.fail(
+          PlatformError.systemError({
+            _tag: "PermissionDenied",
+            module: "FileSystem",
+            method: "link",
+            pathOrDescriptor: fromPath,
+          }),
+        ),
+    })),
+  ).pipe(Layer.provide(NodeServices.layer)),
+);
+
+it.layer(noHardLinks)("publishWithoutReplacing without hard links", (it) => {
+  it.effect("publishes by renaming and still leaves an existing file in place", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-publish-" });
+      const destination = path.join(root, "environment-id");
+      const first = path.join(root, "first");
+      const second = path.join(root, "second");
+      yield* fs.writeFileString(first, "first");
+      yield* fs.writeFileString(second, "second");
+
+      yield* publishWithoutReplacing(first, destination);
+      yield* publishWithoutReplacing(second, destination);
+
+      assert.strictEqual(yield* fs.readFileString(destination), "first");
+      assert.isFalse(yield* fs.exists(first));
+      assert.isTrue(yield* fs.exists(second));
+    }),
+  );
+});

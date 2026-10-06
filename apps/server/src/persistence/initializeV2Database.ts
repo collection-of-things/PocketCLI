@@ -5,6 +5,8 @@ import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
 import * as Schema from "effect/Schema";
 
+import { publishWithoutReplacing } from "../atomicWrite.ts";
+
 export class V2DatabaseImportError extends Schema.TaggedError<V2DatabaseImportError>()(
   "V2DatabaseImportError",
   { sourcePath: Schema.String, destinationPath: Schema.String, cause: Schema.Defect() },
@@ -39,13 +41,7 @@ export const initializeV2Database = Effect.fn("initializeV2Database")(function* 
       }
     });
     // Publish only a complete snapshot, without replacing an existing V2 database.
-    yield* fs
-      .link(snapshotPath, destinationPath)
-      .pipe(
-        Effect.catch((error) =>
-          error.reason._tag === "AlreadyExists" ? Effect.void : Effect.fail(error),
-        ),
-      );
+    yield* publishWithoutReplacing(snapshotPath, destinationPath);
   }).pipe(
     Effect.scoped,
     Effect.mapError((cause) => new V2DatabaseImportError({ sourcePath, destinationPath, cause })),

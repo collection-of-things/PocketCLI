@@ -18,7 +18,9 @@ if [ -z "${PREFIX:-}" ] || [ ! -d "/data/data/com.termux/files/usr" ]; then
 fi
 
 echo "Installing packages ..."
-pkg update -y >/dev/null
+# Upgrade everything first. Installing on top of a partly upgraded Termux can
+# leave libraries out of step, e.g. a libcurl that needs a newer OpenSSL.
+pkg upgrade -y >/dev/null
 pkg install -y nodejs git python clang make curl >/dev/null
 
 node_major="$(node -p 'process.versions.node.split(".")[0]')"

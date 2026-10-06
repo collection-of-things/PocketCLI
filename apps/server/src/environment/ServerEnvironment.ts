@@ -21,6 +21,7 @@ import { resolveServerSelfUpdateCapability } from "../cloud/selfUpdate.ts";
 import { resolveServiceLauncherMode } from "../cloud/serviceLauncherClient.ts";
 import * as ServerConfig from "../config.ts";
 import * as ProcessRunner from "../processRunner.ts";
+import { publishWithoutReplacing } from "../atomicWrite.ts";
 import { resolveServerEnvironmentLabel } from "./ServerEnvironmentLabel.ts";
 import { detectServerEnvironmentMachineKind } from "./ServerEnvironmentMachine.ts";
 
@@ -128,15 +129,11 @@ const makeIdentity = Effect.gen(function* () {
       });
       yield* fileSystem.writeFileString(tempPath, `${value}\n`);
       // Publish the completed file without replacing an ID created by another process.
-      yield* fileSystem.link(tempPath, destinationPath).pipe(
-        Effect.catchIf(
-          (cause) => cause.reason._tag === "AlreadyExists",
-          () => Effect.void,
-        ),
-      );
+      yield* publishWithoutReplacing(tempPath, destinationPath);
       if (mode === "recover") {
         // Keep the recovery ID so delayed initializers also publish the same winner.
-        yield* fileSystem.remove(tempPath);
+        // `force`: on Android the publish renamed the temp file away.
+        yield* fileSystem.remove(tempPath, { force: true });
         yield* fileSystem.copyFile(destinationPath, tempPath);
         yield* fileSystem.rename(tempPath, serverConfig.environmentIdPath);
       }
